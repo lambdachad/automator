@@ -1,9 +1,9 @@
-defmodule CDP.MixProject do
+defmodule Automator.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :cdp,
+      app: :automator,
       version: "0.1.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
@@ -32,7 +32,7 @@ defmodule CDP.MixProject do
     [
       files: ~w(lib .formatter.exs mix.exs README* LICENSE*),
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/lambdachad/cdp"}
+      links: %{"GitHub" => "https://github.com/lambdachad/automator"}
     ]
   end
 end

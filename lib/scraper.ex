@@ -1,4 +1,4 @@
-defmodule CDP.Scraper do
+defmodule Automator.Scraper do
   @moduledoc """
   High-level scraping API that manages a Chromium instance and page connection.
 
@@ -8,18 +8,18 @@ defmodule CDP.Scraper do
 
   ## Example
 
-      {:ok, scraper} = CDP.Scraper.start_link()
+      {:ok, scraper} = Automator.Scraper.start_link()
 
-      CDP.Scraper.navigate(scraper, "https://example.com")
-      title = CDP.Scraper.eval(scraper, "document.title")
+      Automator.Scraper.navigate(scraper, "https://example.com")
+      title = Automator.Scraper.eval(scraper, "document.title")
       # => "Example Domain"
 
-      CDP.Scraper.wait_for_selector(scraper, "h1")
-      CDP.Scraper.click(scraper, "a")
+      Automator.Scraper.wait_for_selector(scraper, "h1")
+      Automator.Scraper.click(scraper, "a")
 
-      %{"data" => base64} = CDP.Scraper.screenshot(scraper)
+      %{"data" => base64} = Automator.Scraper.screenshot(scraper)
 
-      CDP.Scraper.stop(scraper)
+      Automator.Scraper.stop(scraper)
 
   """
 
@@ -32,7 +32,7 @@ defmodule CDP.Scraper do
 
   ## Example
 
-      {:ok, scraper} = CDP.Scraper.start_link()
+      {:ok, scraper} = Automator.Scraper.start_link()
 
   """
   def start_link do
@@ -51,7 +51,7 @@ defmodule CDP.Scraper do
 
   ## Example
 
-      CDP.Scraper.navigate(scraper, "https://example.com")
+      Automator.Scraper.navigate(scraper, "https://example.com")
 
   """
   def navigate(pid, url) do
@@ -76,13 +76,13 @@ defmodule CDP.Scraper do
 
   ## Example
 
-      CDP.Scraper.eval(scraper, "document.title")
+      Automator.Scraper.eval(scraper, "document.title")
       # => "Example Domain"
 
-      CDP.Scraper.eval(scraper, "document.querySelectorAll('a').length")
+      Automator.Scraper.eval(scraper, "document.querySelectorAll('a').length")
       # => 1
 
-      CDP.Scraper.eval(scraper, "Array.from(document.querySelectorAll('a')).map(a => a.href)")
+      Automator.Scraper.eval(scraper, "Array.from(document.querySelectorAll('a')).map(a => a.href)")
       # => ["https://www.iana.org/domains/example"]
 
   """
@@ -106,10 +106,10 @@ defmodule CDP.Scraper do
 
   ## Example
 
-      CDP.Scraper.click(scraper, "button.submit")
+      Automator.Scraper.click(scraper, "button.submit")
       # => true
 
-      CDP.Scraper.click(scraper, "a[href='/next']")
+      Automator.Scraper.click(scraper, "a[href='/next']")
       # => true
 
   """
@@ -136,13 +136,13 @@ defmodule CDP.Scraper do
 
   ## Example
 
-      CDP.Scraper.wait_for_selector(scraper, "h1")
+      Automator.Scraper.wait_for_selector(scraper, "h1")
       # => :ok
 
-      CDP.Scraper.wait_for_selector(scraper, ".dynamic-content", 5000)
+      Automator.Scraper.wait_for_selector(scraper, ".dynamic-content", 5000)
       # => :ok
 
-      CDP.Scraper.wait_for_selector(scraper, ".nonexistent", 1000)
+      Automator.Scraper.wait_for_selector(scraper, ".nonexistent", 1000)
       # => {:error, "selector .nonexistent not found within 1000ms"}
 
   """
@@ -161,7 +161,7 @@ defmodule CDP.Scraper do
 
   ## Example
 
-      %{"data" => base64} = CDP.Scraper.screenshot(scraper)
+      %{"data" => base64} = Automator.Scraper.screenshot(scraper)
       File.write!("screenshot.png", Base.decode64!(base64))
 
   """
@@ -181,7 +181,7 @@ defmodule CDP.Scraper do
 
   ## Example
 
-      CDP.Scraper.set_cookie(scraper, "session", "abc123", ".example.com")
+      Automator.Scraper.set_cookie(scraper, "session", "abc123", ".example.com")
       # => %{"success" => true}
 
   """
@@ -194,7 +194,7 @@ defmodule CDP.Scraper do
 
   ## Example
 
-      CDP.Scraper.stop(scraper)
+      Automator.Scraper.stop(scraper)
 
   """
   def stop(pid) do
@@ -202,25 +202,25 @@ defmodule CDP.Scraper do
   end
 
   def init([]) do
-    browser = CDP.Chromium.spawn()
+    browser = Automator.Chromium.spawn()
     {:ok, %{body: targets}} = Req.get("http://localhost:#{browser.port}/json")
 
     page_ws_url =
       targets |> Enum.find(fn t -> t["type"] == "page" end) |> Map.fetch!("webSocketDebuggerUrl")
 
-    {:ok, client} = CDP.Client.start_link(page_ws_url)
+    {:ok, client} = Automator.Client.start_link(page_ws_url)
     {:ok, %{browser: browser, client: client}}
   end
 
   def handle_call({:navigate, url}, _from, %{client: client} = state) do
-    {:ok, result} = CDP.Client.send_command(client, "Page.navigate", %{url: url})
+    {:ok, result} = Automator.Client.send_command(client, "Page.navigate", %{url: url})
     :timer.sleep(1000)
     {:reply, result, state}
   end
 
   def handle_call({:eval, js}, _from, %{client: client} = state) do
     {:ok, result} =
-      CDP.Client.send_command(client, "Runtime.evaluate", %{
+      Automator.Client.send_command(client, "Runtime.evaluate", %{
         expression: js,
         awaitPromise: true,
         returnByValue: true
@@ -232,7 +232,7 @@ defmodule CDP.Scraper do
 
   def handle_call({:click, selector}, _from, %{client: client} = state) do
     {:ok, result} =
-      CDP.Client.send_command(client, "Runtime.evaluate", %{
+      Automator.Client.send_command(client, "Runtime.evaluate", %{
         expression: """
         (() => {
           const el = document.querySelector('#{selector}');
@@ -248,7 +248,7 @@ defmodule CDP.Scraper do
 
   def handle_call({:wait_for_selector, selector, timeout}, _from, %{client: client} = state) do
     {:ok, result} =
-      CDP.Client.send_command(client, "Runtime.evaluate", %{
+      Automator.Client.send_command(client, "Runtime.evaluate", %{
         expression: """
         new Promise((resolve, reject) => {
           const el = document.querySelector('#{selector}');
@@ -274,13 +274,13 @@ defmodule CDP.Scraper do
   end
 
   def handle_call({:screenshot}, _from, %{client: client} = state) do
-    {:ok, result} = CDP.Client.send_command(client, "Page.captureScreenshot")
+    {:ok, result} = Automator.Client.send_command(client, "Page.captureScreenshot")
     {:reply, result, state}
   end
 
   def handle_call({:set_cookie, name, value, domain}, _from, %{client: client} = state) do
     {:ok, result} =
-      CDP.Client.send_command(client, "Network.setCookie", %{
+      Automator.Client.send_command(client, "Network.setCookie", %{
         name: name,
         value: value,
         domain: domain
@@ -290,7 +290,7 @@ defmodule CDP.Scraper do
   end
 
   def handle_call(:stop, _from, %{browser: browser} = state) do
-    CDP.Chromium.kill(browser)
+    Automator.Chromium.kill(browser)
     {:stop, :normal, :ok, state}
   end
 end

@@ -1,15 +1,15 @@
-# CDP
+# Automator
 
 Chrome DevTools Protocol scraper for Elixir. Spawn headless Chromium, navigate pages, evaluate JavaScript, and extract data.
 
 ## Installation
 
-Add `:cdp` to your dependencies:
+Add `:automator` to your dependencies:
 
 ```elixir
 def deps do
   [
-    {:cdp, "~> 0.1.0"}
+    {:automator, "~> 0.1.0"}
   ]
 end
 ```
@@ -20,34 +20,34 @@ Requires Chromium installed and available on PATH as `chromium`.
 
 ```elixir
 # Start a scraper (spawns Chromium + connects automatically)
-{:ok, scraper} = CDP.Scraper.start_link()
+{:ok, scraper} = Automator.Scraper.start_link()
 
 # Navigate to a page
-CDP.Scraper.navigate(scraper, "https://example.com")
+Automator.Scraper.navigate(scraper, "https://example.com")
 
 # Evaluate JavaScript
-title = CDP.Scraper.eval(scraper, "document.title")
+title = Automator.Scraper.eval(scraper, "document.title")
 # => "Example Domain"
 
 # Wait for an element to appear
-CDP.Scraper.wait_for_selector(scraper, "h1")
+Automator.Scraper.wait_for_selector(scraper, "h1")
 
 # Click an element
-CDP.Scraper.click(scraper, "a")
+Automator.Scraper.click(scraper, "a")
 
 # Take a screenshot (returns base64)
-%{"data" => base64} = CDP.Scraper.screenshot(scraper)
+%{"data" => base64} = Automator.Scraper.screenshot(scraper)
 
 # Set cookies
-CDP.Scraper.set_cookie(scraper, "name", "value", ".example.com")
+Automator.Scraper.set_cookie(scraper, "name", "value", ".example.com")
 
 # Cleanup
-CDP.Scraper.stop(scraper)
+Automator.Scraper.stop(scraper)
 ```
 
 ## API
 
-### CDP.Scraper
+### Automator.Scraper
 
 High-level API that manages a Chromium instance and page connection.
 
@@ -62,24 +62,24 @@ High-level API that manages a Chromium instance and page connection.
 | `set_cookie/4` | Set a cookie (name, value, domain) |
 | `stop/1` | Kill Chromium and cleanup |
 
-### CDP.Chromium
+### Automator.Chromium
 
 Low-level Chromium process management.
 
 ```elixir
-browser = CDP.Chromium.spawn()
+browser = Automator.Chromium.spawn()
 # => %{chromium: #Port<...>, os_pid: 1234, port: 9222, ws_url: "ws://..."}
 
-CDP.Chromium.kill(browser)
+Automator.Chromium.kill(browser)
 ```
 
-### CDP.Client
+### Automator.Client
 
-Low-level CDP WebSocket client for sending raw commands.
+Low-level Automator WebSocket client for sending raw commands.
 
 ```elixir
-{:ok, client} = CDP.Client.start_link(ws_url)
-{:ok, result} = CDP.Client.send_command(client, "Browser.getVersion")
+{:ok, client} = Automator.Client.start_link(ws_url)
+{:ok, result} = Automator.Client.send_command(client, "Browser.getVersion")
 ```
 
 ## License

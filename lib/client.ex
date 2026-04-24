@@ -1,27 +1,27 @@
-defmodule CDP.Client do
+defmodule Automator.Client do
   @moduledoc """
-  Low-level CDP WebSocket client.
+  Low-level Automator WebSocket client.
 
-  Connects to a Chromium WebSocket debugger URL and sends CDP commands
+  Connects to a Chromium WebSocket debugger URL and sends Automator commands
   using the JSON-RPC protocol. Use this when you need direct access to
-  CDP methods not exposed by `CDP.Scraper`.
+  Automator methods not exposed by `Automator.Scraper`.
 
-  For most use cases, prefer `CDP.Scraper` which manages the browser
+  For most use cases, prefer `Automator.Scraper` which manages the browser
   and page connection automatically.
 
   ## Example
 
       # Connect to a browser-level WebSocket
-      {:ok, client} = CDP.Client.start_link(ws_url)
+      {:ok, client} = Automator.Client.start_link(ws_url)
 
-      # Send any CDP command
-      {:ok, result} = CDP.Client.send_command(client, "Browser.getVersion")
+      # Send any Automator command
+      {:ok, result} = Automator.Client.send_command(client, "Browser.getVersion")
       IO.inspect(result["product"])
       # => "Chrome/145.0.7632.159"
 
       # Connect to a page target for page-level commands
-      {:ok, page_client} = CDP.Client.start_link(page_ws_url)
-      {:ok, _} = CDP.Client.send_command(page_client, "Page.navigate", %{url: "https://example.com"})
+      {:ok, page_client} = Automator.Client.start_link(page_ws_url)
+      {:ok, _} = Automator.Client.send_command(page_client, "Page.navigate", %{url: "https://example.com"})
 
   """
 
@@ -34,12 +34,12 @@ defmodule CDP.Client do
 
   ## Parameters
 
-    * `ws_url` - The WebSocket URL from `CDP.Chromium.spawn().ws_url` or
+    * `ws_url` - The WebSocket URL from `Automator.Chromium.spawn().ws_url` or
       from the `/json` HTTP endpoint for a specific page target.
 
   ## Example
 
-      {:ok, client} = CDP.Client.start_link("ws://localhost:9222/devtools/browser/...")
+      {:ok, client} = Automator.Client.start_link("ws://localhost:9222/devtools/browser/...")
 
   """
   def start_link(ws_url) do
@@ -47,29 +47,29 @@ defmodule CDP.Client do
   end
 
   @doc """
-  Sends a CDP command and blocks until the response arrives.
+  Sends a Automator command and blocks until the response arrives.
 
-  Commands follow the CDP JSON-RPC format. See the
-  [CDP protocol documentation](https://chromedevtools.github.io/devtools-protocol/)
+  Commands follow the Automator JSON-RPC format. See the
+  [Automator protocol documentation](https://chromedevtools.github.io/devtools-protocol/)
   for available methods and parameters.
 
   ## Parameters
 
     * `pid` - The client process returned by `start_link/1`
-    * `method` - The CDP method name (e.g., `"Page.navigate"`, `"Runtime.evaluate"`)
+    * `method` - The Automator method name (e.g., `"Page.navigate"`, `"Runtime.evaluate"`)
     * `params` - A map of parameters for the command (defaults to `%{}`)
 
   ## Returns
 
-    * `{:ok, result}` - The CDP response body
-    * `{:error, error}` - If CDP returned an error response
+    * `{:ok, result}` - The Automator response body
+    * `{:error, error}` - If Automator returned an error response
 
   ## Example
 
-      {:ok, result} = CDP.Client.send_command(client, "Page.navigate", %{url: "https://example.com"})
+      {:ok, result} = Automator.Client.send_command(client, "Page.navigate", %{url: "https://example.com"})
       # => {:ok, %{"frameId" => "...", "loaderId" => "..."}}
 
-      {:ok, result} = CDP.Client.send_command(client, "Runtime.evaluate", %{
+      {:ok, result} = Automator.Client.send_command(client, "Runtime.evaluate", %{
         expression: "document.title",
         returnByValue: true
       })

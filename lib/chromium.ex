@@ -1,17 +1,17 @@
-defmodule CDP.Chromium do
+defmodule Automator.Chromium do
   @moduledoc """
   Low-level Chromium process management.
 
   Spawns a headless Chromium instance and provides the WebSocket debugger URL
-  needed to connect via `CDP.Client` or `CDP.Scraper`.
+  needed to connect via `Automator.Client` or `Automator.Scraper`.
 
   ## Example
 
-      browser = CDP.Chromium.spawn()
+      browser = Automator.Chromium.spawn()
       # => %{chromium: #Port<...>, os_pid: 1234, port: 9222, ws_url: "ws://..."}
 
       # Use the ws_url to connect...
-      CDP.Chromium.kill(browser)
+      Automator.Chromium.kill(browser)
 
   ## Browser struct
 
@@ -35,7 +35,7 @@ defmodule CDP.Chromium do
 
   ## Example
 
-      browser = CDP.Chromium.spawn()
+      browser = Automator.Chromium.spawn()
       IO.puts(browser.ws_url)
       # => "ws://localhost:9222/devtools/browser/..."
 
@@ -70,8 +70,8 @@ defmodule CDP.Chromium do
 
   ## Example
 
-      browser = CDP.Chromium.spawn()
-      CDP.Chromium.kill(browser)
+      browser = Automator.Chromium.spawn()
+      Automator.Chromium.kill(browser)
 
   """
   def kill(%{os_pid: os_pid}) do
