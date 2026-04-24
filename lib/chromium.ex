@@ -18,7 +18,7 @@ defmodule CDP.Chromium do
     # Get WebSocket debugger URL
     version_url = "http://localhost:#{port}/json/version"
     {:ok, %{body: %{"webSocketDebuggerUrl" => ws_url}}} = Req.get(version_url, retry_log_level: false)
-    %{chromium: chromium, os_pid: os_pid, ws_url: ws_url}
+    %{chromium: chromium, os_pid: os_pid, port: port, ws_url: ws_url}
   end
 
   def kill(%{os_pid: os_pid}) do
