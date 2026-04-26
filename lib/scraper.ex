@@ -59,8 +59,10 @@ defmodule Automator.Scraper do
       {:ok, scraper} = Automator.Scraper.start_link()
 
   """
-  def start_link do
-    GenServer.start_link(__MODULE__, [])
+  def start_link(opts \\ []) do
+    name = Keyword.get(opts, :name)
+    cookies = Keyword.get(opts, :cookies, [])
+    GenServer.start_link(__MODULE__, %{cookies: cookies}, name: name)
   end
 
   @doc """
@@ -225,14 +227,18 @@ defmodule Automator.Scraper do
     GenServer.call(pid, :stop)
   end
 
-  def init([]) do
+  def init(args) do
     browser = Automator.Chromium.spawn()
     {:ok, %{body: targets}} = Req.get("http://localhost:#{browser.port}/json")
-
-    page_ws_url =
-      targets |> Enum.find(fn t -> t["type"] == "page" end) |> Map.fetch!("webSocketDebuggerUrl")
-
+    page_ws_url = targets |> Enum.find(fn t -> t["type"] == "page" end) |> Map.fetch!("webSocketDebuggerUrl")
     {:ok, client} = Automator.Client.start_link(page_ws_url)
+    for {name, value, domain} <- args.cookies do
+      Automator.Client.send_command(client, "Network.setCookie", %{
+        name: name,
+        value: value,
+        domain: domain
+      })
+    end
     {:ok, %{browser: browser, client: client}}
   end
 
