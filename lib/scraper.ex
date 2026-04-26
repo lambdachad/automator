@@ -230,8 +230,10 @@ defmodule Automator.Scraper do
   def init(args) do
     browser = Automator.Chromium.spawn()
     {:ok, %{body: targets}} = Req.get("http://localhost:#{browser.port}/json")
-    page_ws_url = targets |> Enum.find(fn t -> t["type"] == "page" end) |> Map.fetch!("webSocketDebuggerUrl")
+    page_ws_url =
+      targets |> Enum.find(fn t -> t["type"] == "page" end) |> Map.fetch!("webSocketDebuggerUrl")
     {:ok, client} = Automator.Client.start_link(page_ws_url)
+
     for {name, value, domain} <- args.cookies do
       Automator.Client.send_command(client, "Network.setCookie", %{
         name: name,
@@ -261,19 +263,33 @@ defmodule Automator.Scraper do
   end
 
   def handle_call({:click, selector}, _from, %{client: client} = state) do
-    {:ok, result} =
+    {:ok, %{"result" => %{"value" => coords}}} =
       Automator.Client.send_command(client, "Runtime.evaluate", %{
         expression: """
         (() => {
           const el = document.querySelector('#{selector}');
-          if (el) { el.click(); return true; }
-          return false;
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return {x: r.x + r.width / 2, y: r.y + r.height / 2};
         })()
         """,
         returnByValue: true
       })
 
-    {:reply, result["result"]["value"], state}
+    if coords do
+      for type <- ["mousePressed", "mouseReleased"] do
+        Automator.Client.send_command(client, "Input.dispatchMouseEvent", %{
+          type: type,
+          x: coords["x"],
+          y: coords["y"],
+          button: "left",
+          clickCount: 1
+        })
+      end
+      {:reply, true, state}
+    else
+      {:reply, false, state}
+    end
   end
 
   def handle_call({:wait_for_selector, selector, timeout}, _from, %{client: client} = state) do
