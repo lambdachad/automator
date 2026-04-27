@@ -16,9 +16,7 @@ defmodule Automator.Scraper do
 
       Automator.Scraper.wait_for_selector(scraper, "h1")
       Automator.Scraper.click(scraper, "a")
-
-      %{"data" => base64} = Automator.Scraper.screenshot(scraper)
-      File.write!("page.png", Base.decode64!(base64))
+      Automator.Scraper.screenshot(scraper, "page.png")
 
       Automator.Scraper.stop(scraper)
 
@@ -40,7 +38,7 @@ defmodule Automator.Scraper do
   | `eval/2` | `Runtime.evaluate` |
   | `click/2` | `Runtime.evaluate` (with `document.querySelector`) |
   | `wait_for_selector/3` | `Runtime.evaluate` (with `MutationObserver`) |
-  | `screenshot/1` | `Page.captureScreenshot` |
+  | `screenshot/1`, `screenshot/2` | `Page.captureScreenshot` |
   | `set_cookie/4` | `Network.setCookie` |
 
   For raw CDP access beyond these methods, use `Automator.Client` directly.
@@ -180,6 +178,7 @@ defmodule Automator.Scraper do
   Captures a screenshot of the current page.
 
   Returns a map with a `"data"` key containing the base64-encoded PNG image.
+  See also `screenshot/2` to write directly to a file.
 
   ## Parameters
 
@@ -193,6 +192,26 @@ defmodule Automator.Scraper do
   """
   def screenshot(pid) do
     GenServer.call(pid, {:screenshot})
+  end
+
+  @doc """
+  Captures a screenshot and writes it to the given file path.
+
+  Decodes the base64 PNG data and writes it directly to disk.
+
+  ## Parameters
+
+    * `pid` - The scraper process
+    * `path` - File path to write the PNG to
+
+  ## Example
+
+      Automator.Scraper.screenshot(scraper, "screenshot.png")
+      # => :ok
+
+  """
+  def screenshot(pid, path) do
+    GenServer.call(pid, {:screenshot, path})
   end
 
   @doc """
@@ -230,8 +249,10 @@ defmodule Automator.Scraper do
   def init(args) do
     browser = Automator.Chromium.spawn()
     {:ok, %{body: targets}} = Req.get("http://localhost:#{browser.port}/json")
+
     page_ws_url =
       targets |> Enum.find(fn t -> t["type"] == "page" end) |> Map.fetch!("webSocketDebuggerUrl")
+
     {:ok, client} = Automator.Client.start_link(page_ws_url)
 
     for {name, value, domain} <- args.cookies do
@@ -241,6 +262,7 @@ defmodule Automator.Scraper do
         domain: domain
       })
     end
+
     {:ok, %{browser: browser, client: client}}
   end
 
@@ -286,6 +308,7 @@ defmodule Automator.Scraper do
           clickCount: 1
         })
       end
+
       {:reply, true, state}
     else
       {:reply, false, state}
@@ -322,6 +345,12 @@ defmodule Automator.Scraper do
   def handle_call({:screenshot}, _from, %{client: client} = state) do
     {:ok, result} = Automator.Client.send_command(client, "Page.captureScreenshot")
     {:reply, result, state}
+  end
+
+  def handle_call({:screenshot, path}, _from, %{client: client} = state) do
+    {:ok, %{"data" => base64}} = Automator.Client.send_command(client, "Page.captureScreenshot")
+    File.write!(path, Base.decode64!(base64))
+    {:reply, :ok, state}
   end
 
   def handle_call({:set_cookie, name, value, domain}, _from, %{client: client} = state) do
