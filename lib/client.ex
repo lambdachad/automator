@@ -57,7 +57,13 @@ defmodule Automator.Client do
 
   """
 
+  use TypedStruct
   use WebSockex
+
+  typedstruct enforce: true do
+    field(:next_id, non_neg_integer())
+    field(:callers, %{non_neg_integer() => pid()})
+  end
 
   @doc """
   Connects to a Chromium WebSocket debugger URL.
@@ -75,7 +81,7 @@ defmodule Automator.Client do
 
   """
   def start_link(ws_url) do
-    WebSockex.start_link(ws_url, __MODULE__, %{next_id: 1, callers: %{}})
+    WebSockex.start_link(ws_url, __MODULE__, %__MODULE__{next_id: 1, callers: %{}})
   end
 
   @doc """

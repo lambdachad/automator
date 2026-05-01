@@ -45,7 +45,13 @@ defmodule Automator.Scraper do
 
   """
 
+  use TypedStruct
   use GenServer
+
+  typedstruct enforce: true do
+    field(:browser, Automator.Chromium.t())
+    field(:client, pid())
+  end
 
   @doc """
   Starts a new scraper by spawning Chromium and connecting to a page.
@@ -263,16 +269,16 @@ defmodule Automator.Scraper do
       })
     end
 
-    {:ok, %{browser: browser, client: client}}
+    {:ok, %__MODULE__{browser: browser, client: client}}
   end
 
-  def handle_call({:navigate, url}, _from, %{client: client} = state) do
+  def handle_call({:navigate, url}, _from, %__MODULE__{client: client} = state) do
     {:ok, result} = Automator.Client.send_command(client, "Page.navigate", %{url: url})
     :timer.sleep(1000)
     {:reply, result, state}
   end
 
-  def handle_call({:eval, js}, _from, %{client: client} = state) do
+  def handle_call({:eval, js}, _from, %__MODULE__{client: client} = state) do
     {:ok, result} =
       Automator.Client.send_command(client, "Runtime.evaluate", %{
         expression: js,
@@ -284,7 +290,7 @@ defmodule Automator.Scraper do
     {:reply, value, state}
   end
 
-  def handle_call({:click, selector}, _from, %{client: client} = state) do
+  def handle_call({:click, selector}, _from, %__MODULE__{client: client} = state) do
     {:ok, %{"result" => %{"value" => coords}}} =
       Automator.Client.send_command(client, "Runtime.evaluate", %{
         expression: """
@@ -315,7 +321,11 @@ defmodule Automator.Scraper do
     end
   end
 
-  def handle_call({:wait_for_selector, selector, timeout}, _from, %{client: client} = state) do
+  def handle_call(
+        {:wait_for_selector, selector, timeout},
+        _from,
+        %__MODULE__{client: client} = state
+      ) do
     {:ok, result} =
       Automator.Client.send_command(client, "Runtime.evaluate", %{
         expression: """
@@ -342,18 +352,18 @@ defmodule Automator.Scraper do
     end
   end
 
-  def handle_call({:screenshot}, _from, %{client: client} = state) do
+  def handle_call({:screenshot}, _from, %__MODULE__{client: client} = state) do
     {:ok, result} = Automator.Client.send_command(client, "Page.captureScreenshot")
     {:reply, result, state}
   end
 
-  def handle_call({:screenshot, path}, _from, %{client: client} = state) do
+  def handle_call({:screenshot, path}, _from, %__MODULE__{client: client} = state) do
     {:ok, %{"data" => base64}} = Automator.Client.send_command(client, "Page.captureScreenshot")
     File.write!(path, Base.decode64!(base64))
     {:reply, :ok, state}
   end
 
-  def handle_call({:set_cookie, name, value, domain}, _from, %{client: client} = state) do
+  def handle_call({:set_cookie, name, value, domain}, _from, %__MODULE__{client: client} = state) do
     {:ok, result} =
       Automator.Client.send_command(client, "Network.setCookie", %{
         name: name,
@@ -364,7 +374,7 @@ defmodule Automator.Scraper do
     {:reply, result, state}
   end
 
-  def handle_call(:stop, _from, %{browser: browser} = state) do
+  def handle_call(:stop, _from, %__MODULE__{browser: browser} = state) do
     Automator.Chromium.kill(browser)
     {:stop, :normal, :ok, state}
   end

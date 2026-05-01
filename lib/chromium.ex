@@ -8,11 +8,11 @@ defmodule Automator.Chromium do
   ## Example
 
       browser = Automator.Chromium.spawn()
-      # => %{chromium: #Port<...>, os_pid: 1234, port: 9222, ws_url: "ws://..."}
+      # => %Automator.Chromium{chromium: #Port<...>, os_pid: 1234, port: 9222, ws_url: \"ws://...\"}
 
       # Connect to the browser target
       {:ok, client} = Automator.Client.start_link(browser.ws_url)
-      {:ok, result} = Automator.Client.send_command(client, "Browser.getVersion")
+      {:ok, result} = Automator.Client.send_command(client, \"Browser.getVersion\")
 
       Automator.Chromium.kill(browser)
 
@@ -40,6 +40,15 @@ defmodule Automator.Chromium do
 
   """
 
+  use TypedStruct
+
+  typedstruct enforce: true do
+    field(:chromium, port())
+    field(:os_pid, non_neg_integer())
+    field(:port, :inet.port_number())
+    field(:ws_url, String.t())
+  end
+
   @doc """
   Spawns a headless Chromium instance on an available port.
 
@@ -47,7 +56,7 @@ defmodule Automator.Chromium do
   and `--window-size=1920,1080`. Finds an available TCP port automatically
   and sets `--remote-debugging-port` to it.
 
-  Returns a map with `:chromium`, `:os_pid`, `:port`, and `:ws_url`.
+  Returns an `%Automator.Chromium{}` struct with `:chromium`, `:os_pid`, `:port`, and `:ws_url`.
 
   ## Example
 
@@ -78,7 +87,7 @@ defmodule Automator.Chromium do
     {:ok, %{body: %{"webSocketDebuggerUrl" => ws_url}}} =
       Req.get(version_url, retry_log_level: false)
 
-    %{chromium: chromium, os_pid: os_pid, port: port, ws_url: ws_url}
+    %__MODULE__{chromium: chromium, os_pid: os_pid, port: port, ws_url: ws_url}
   end
 
   @doc """
@@ -90,7 +99,7 @@ defmodule Automator.Chromium do
       Automator.Chromium.kill(browser)
 
   """
-  def kill(%{os_pid: os_pid}) do
+  def kill(%__MODULE__{os_pid: os_pid}) do
     System.cmd("kill", ["-9", "#{os_pid}"])
   end
 
