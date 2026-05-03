@@ -73,21 +73,49 @@ defmodule Automator.Chromium do
       # => "ws://localhost:9222/devtools/browser/..."
 
   """
-  def spawn do
+  @default_args [
+    "--headless=new",
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--disable-extensions",
+    "--disable-background-timer-throttling",
+    "--disable-backgrounding-occluded-windows",
+    "--disable-renderer-backgrounding",
+    "--disable-component-update",
+    "--disable-sync",
+    "--disable-default-apps",
+    "--disable-translate",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--metrics-recording-only",
+    "--mute-audio",
+    "--memory-pressure-off",
+    "--disable-features=GcmRegistration,OptimizationGuideOnDeviceModel,OptimizationHints,OnDeviceModel,Translate,AcceptCHFrame,MediaRouter,DialMediaRouteProvider"
+  ]
+
+  @default_window_size "1280,800"
+
+  def spawn(opts \\ []) do
     port = available_port()
     user_data_dir = mk_user_data_dir()
     chromium_path = System.find_executable("chromium")
 
-    chromium =
-      Port.open({:spawn_executable, chromium_path},
-        args: [
-          "--headless=new",
-          "--no-sandbox",
-          "--disable-gpu",
-          "--window-size=1920,1080",
+    window_size = Keyword.get(opts, :window_size, @default_window_size)
+    extra_args = Keyword.get(opts, :extra_args, [])
+
+    base_args =
+      @default_args ++
+        [
+          "--window-size=#{window_size}",
           "--user-data-dir=#{user_data_dir}",
           "--remote-debugging-port=#{port}"
         ]
+
+    chromium =
+      Port.open({:spawn_executable, chromium_path},
+        args: dedupe_args(base_args ++ extra_args)
       )
 
     {:os_pid, os_pid} = Port.info(chromium, :os_pid)
@@ -104,6 +132,21 @@ defmodule Automator.Chromium do
       ws_url: ws_url,
       user_data_dir: user_data_dir
     }
+  end
+
+  # Later args override earlier ones for the same flag key (the part before `=`).
+  defp dedupe_args(args) do
+    args
+    |> Enum.reverse()
+    |> Enum.uniq_by(&arg_key/1)
+    |> Enum.reverse()
+  end
+
+  defp arg_key(arg) do
+    case String.split(arg, "=", parts: 2) do
+      [key, _value] -> key
+      [key] -> key
+    end
   end
 
   @doc """
