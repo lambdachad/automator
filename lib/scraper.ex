@@ -53,6 +53,9 @@ defmodule Automator.Scraper do
     field(:client, pid())
   end
 
+  @default_navigate_wait_ms 1_000
+  @navigate_call_buffer_ms 30_000
+
   @doc """
   Starts a new scraper by spawning Chromium and connecting to a page.
 
@@ -78,14 +81,26 @@ defmodule Automator.Scraper do
 
     * `pid` - The scraper process
     * `url` - The URL to navigate to
+    * `opts` - Options:
+      * `:wait_ms` - milliseconds to wait after `Page.navigate` before returning.
+        Defaults to `1_000`. Increase for SPA hydration, lazy images, or sites
+        with heavy async rendering.
 
   ## Example
 
       Automator.Scraper.navigate(scraper, "https://example.com")
+      Automator.Scraper.navigate(scraper, "https://app.example.com", wait_ms: 4_000)
 
   """
-  def navigate(pid, url) do
-    GenServer.call(pid, {:navigate, url})
+  def navigate(pid, url, opts \\ []) do
+    wait_ms = validate_wait_ms!(Keyword.get(opts, :wait_ms, @default_navigate_wait_ms))
+    GenServer.call(pid, {:navigate, url, wait_ms}, wait_ms + @navigate_call_buffer_ms)
+  end
+
+  defp validate_wait_ms!(wait_ms) when is_integer(wait_ms) and wait_ms >= 0, do: wait_ms
+
+  defp validate_wait_ms!(other) do
+    raise ArgumentError, "wait_ms must be a non-negative integer, got: #{inspect(other)}"
   end
 
   @doc """
@@ -254,7 +269,7 @@ defmodule Automator.Scraper do
 
   def init(args) do
     browser = Automator.Chromium.spawn()
-    {:ok, %{body: targets}} = Req.get("http://localhost:#{browser.port}/json")
+    {:ok, %{body: targets}} = Req.get("http://127.0.0.1:#{browser.port}/json")
 
     page_ws_url =
       targets |> Enum.find(fn t -> t["type"] == "page" end) |> Map.fetch!("webSocketDebuggerUrl")
@@ -272,9 +287,9 @@ defmodule Automator.Scraper do
     {:ok, %__MODULE__{browser: browser, client: client}}
   end
 
-  def handle_call({:navigate, url}, _from, %__MODULE__{client: client} = state) do
+  def handle_call({:navigate, url, wait_ms}, _from, %__MODULE__{client: client} = state) do
     {:ok, result} = Automator.Client.send_command(client, "Page.navigate", %{url: url})
-    :timer.sleep(1000)
+    :timer.sleep(wait_ms)
     {:reply, result, state}
   end
 
