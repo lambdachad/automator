@@ -25,7 +25,7 @@ defmodule Automator.MixProject do
       {:websockex, "~> 0.5"},
       {:req, "~> 0.5"},
       {:jason, "~> 1.4"},
-      {:typed_struct, "~> 0.3"},
+      {:typedstruct, "~> 0.5"},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end
