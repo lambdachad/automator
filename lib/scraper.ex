@@ -53,6 +53,9 @@ defmodule Automator.Scraper do
     field(:client, pid())
   end
 
+  @default_navigate_wait_ms 1_000
+  @navigate_call_buffer_ms 30_000
+
   @doc """
   Starts a new scraper by spawning Chromium and connecting to a page.
 
@@ -78,14 +81,26 @@ defmodule Automator.Scraper do
 
     * `pid` - The scraper process
     * `url` - The URL to navigate to
+    * `opts` - Options:
+      * `:wait_ms` - milliseconds to wait after `Page.navigate` before returning.
+        Defaults to `1_000`. Increase for SPA hydration, lazy images, or sites
+        with heavy async rendering.
 
   ## Example
 
       Automator.Scraper.navigate(scraper, "https://example.com")
+      Automator.Scraper.navigate(scraper, "https://app.example.com", wait_ms: 4_000)
 
   """
-  def navigate(pid, url) do
-    GenServer.call(pid, {:navigate, url})
+  def navigate(pid, url, opts \\ []) do
+    wait_ms = validate_wait_ms!(Keyword.get(opts, :wait_ms, @default_navigate_wait_ms))
+    GenServer.call(pid, {:navigate, url, wait_ms}, wait_ms + @navigate_call_buffer_ms)
+  end
+
+  defp validate_wait_ms!(wait_ms) when is_integer(wait_ms) and wait_ms >= 0, do: wait_ms
+
+  defp validate_wait_ms!(other) do
+    raise ArgumentError, "wait_ms must be a non-negative integer, got: #{inspect(other)}"
   end
 
   @doc """
@@ -201,23 +216,32 @@ defmodule Automator.Scraper do
   end
 
   @doc """
-  Captures a screenshot and writes it to the given file path.
+  Captures a screenshot, with either a file path or a map of CDP options.
 
-  Decodes the base64 PNG data and writes it directly to disk.
+  When the second argument is a path string, the screenshot is decoded and
+  written to disk as PNG. When it is a map, the map is passed through as
+  parameters to `Page.captureScreenshot` (e.g. `format: "jpeg", quality: 85,
+  clip: %{x: 0, y: 0, width: 1280, height: 800, scale: 1}`) and the raw
+  response is returned.
 
-  ## Parameters
-
-    * `pid` - The scraper process
-    * `path` - File path to write the PNG to
-
-  ## Example
+  ## Examples
 
       Automator.Scraper.screenshot(scraper, "screenshot.png")
       # => :ok
 
+      %{"data" => base64} = Automator.Scraper.screenshot(scraper, %{
+        format: "jpeg",
+        quality: 85,
+        clip: %{x: 0, y: 0, width: 1280, height: 800, scale: 1}
+      })
+
   """
-  def screenshot(pid, path) do
-    GenServer.call(pid, {:screenshot, path})
+  def screenshot(pid, path) when is_binary(path) do
+    GenServer.call(pid, {:screenshot_to_file, path})
+  end
+
+  def screenshot(pid, opts) when is_map(opts) do
+    GenServer.call(pid, {:screenshot, opts})
   end
 
   @doc """
@@ -254,7 +278,7 @@ defmodule Automator.Scraper do
 
   def init(args) do
     browser = Automator.Chromium.spawn()
-    {:ok, %{body: targets}} = Req.get("http://localhost:#{browser.port}/json")
+    {:ok, %{body: targets}} = Req.get("http://127.0.0.1:#{browser.port}/json")
 
     page_ws_url =
       targets |> Enum.find(fn t -> t["type"] == "page" end) |> Map.fetch!("webSocketDebuggerUrl")
@@ -272,9 +296,9 @@ defmodule Automator.Scraper do
     {:ok, %__MODULE__{browser: browser, client: client}}
   end
 
-  def handle_call({:navigate, url}, _from, %__MODULE__{client: client} = state) do
+  def handle_call({:navigate, url, wait_ms}, _from, %__MODULE__{client: client} = state) do
     {:ok, result} = Automator.Client.send_command(client, "Page.navigate", %{url: url})
-    :timer.sleep(1000)
+    :timer.sleep(wait_ms)
     {:reply, result, state}
   end
 
@@ -357,7 +381,13 @@ defmodule Automator.Scraper do
     {:reply, result, state}
   end
 
-  def handle_call({:screenshot, path}, _from, %__MODULE__{client: client} = state) do
+  def handle_call({:screenshot, opts}, _from, %__MODULE__{client: client} = state)
+      when is_map(opts) do
+    {:ok, result} = Automator.Client.send_command(client, "Page.captureScreenshot", opts)
+    {:reply, result, state}
+  end
+
+  def handle_call({:screenshot_to_file, path}, _from, %__MODULE__{client: client} = state) do
     {:ok, %{"data" => base64}} = Automator.Client.send_command(client, "Page.captureScreenshot")
     File.write!(path, Base.decode64!(base64))
     {:reply, :ok, state}
