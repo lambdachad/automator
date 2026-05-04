@@ -216,23 +216,32 @@ defmodule Automator.Scraper do
   end
 
   @doc """
-  Captures a screenshot and writes it to the given file path.
+  Captures a screenshot, with either a file path or a map of CDP options.
 
-  Decodes the base64 PNG data and writes it directly to disk.
+  When the second argument is a path string, the screenshot is decoded and
+  written to disk as PNG. When it is a map, the map is passed through as
+  parameters to `Page.captureScreenshot` (e.g. `format: "jpeg", quality: 85,
+  clip: %{x: 0, y: 0, width: 1280, height: 800, scale: 1}`) and the raw
+  response is returned.
 
-  ## Parameters
-
-    * `pid` - The scraper process
-    * `path` - File path to write the PNG to
-
-  ## Example
+  ## Examples
 
       Automator.Scraper.screenshot(scraper, "screenshot.png")
       # => :ok
 
+      %{"data" => base64} = Automator.Scraper.screenshot(scraper, %{
+        format: "jpeg",
+        quality: 85,
+        clip: %{x: 0, y: 0, width: 1280, height: 800, scale: 1}
+      })
+
   """
-  def screenshot(pid, path) do
-    GenServer.call(pid, {:screenshot, path})
+  def screenshot(pid, path) when is_binary(path) do
+    GenServer.call(pid, {:screenshot_to_file, path})
+  end
+
+  def screenshot(pid, opts) when is_map(opts) do
+    GenServer.call(pid, {:screenshot, opts})
   end
 
   @doc """
@@ -372,7 +381,13 @@ defmodule Automator.Scraper do
     {:reply, result, state}
   end
 
-  def handle_call({:screenshot, path}, _from, %__MODULE__{client: client} = state) do
+  def handle_call({:screenshot, opts}, _from, %__MODULE__{client: client} = state)
+      when is_map(opts) do
+    {:ok, result} = Automator.Client.send_command(client, "Page.captureScreenshot", opts)
+    {:reply, result, state}
+  end
+
+  def handle_call({:screenshot_to_file, path}, _from, %__MODULE__{client: client} = state) do
     {:ok, %{"data" => base64}} = Automator.Client.send_command(client, "Page.captureScreenshot")
     File.write!(path, Base.decode64!(base64))
     {:reply, :ok, state}
