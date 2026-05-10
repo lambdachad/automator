@@ -92,6 +92,8 @@ defmodule Automator.Chromium do
     "--metrics-recording-only",
     "--mute-audio",
     "--memory-pressure-off",
+    "--disable-logging",
+    "--log-level=3",
     "--disable-features=GcmRegistration,OptimizationGuideOnDeviceModel,OptimizationHints,OnDeviceModel,Translate,AcceptCHFrame,MediaRouter,DialMediaRouteProvider"
   ]
 
