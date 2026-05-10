@@ -231,7 +231,8 @@ browser = Automator.Chromium.spawn()
 #   chromium: #Port<0.5>,
 #   os_pid: 12345,
 #   port: 9222,
-#   ws_url: "ws://localhost:9222/devtools/browser/..."
+#   ws_url: "ws://localhost:9222/devtools/browser/...",
+#   user_data_dir: "/tmp/automator-..."
 # }
 ```
 
@@ -243,9 +244,10 @@ browser = Automator.Chromium.spawn()
 | `--no-sandbox` | — |
 | `--disable-gpu` | — |
 | `--window-size` | `1920,1080` |
+| `--user-data-dir` | unique temp directory (cleaned up on `kill/1`) |
 | `--remote-debugging-port` | auto-detected |
 
-**Returns:** A map with `:chromium` (port ref), `:os_pid`, `:port`, and `:ws_url`.
+**Returns:** A struct with `:chromium` (port ref), `:os_pid`, `:port`, `:ws_url`, and `:user_data_dir`.
 
 #### `kill/1`
 
