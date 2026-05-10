@@ -9,7 +9,7 @@ Add `:automator` to your dependencies:
 ```elixir
 def deps do
   [
-    {:automator, "~> 0.1.0"}
+    {:automator, "~> 0.1.4"}
   ]
 end
 ```
